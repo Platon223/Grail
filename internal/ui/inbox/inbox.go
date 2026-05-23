@@ -4,11 +4,14 @@ import (
 	//	"github.com/charmbracelet/bubbles/list"
 	//	"github.com/charmbracelet/bubbles/viewport"
 	"fmt"
+	"strings"
 
 	//	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/glamour"
+	gmailapi "google.golang.org/api/gmail/v1"
 
+	domainGmail "github.com/Platon223/Grail/internal/domain/email"
 	"github.com/charmbracelet/lipgloss"
 )
 
@@ -30,27 +33,50 @@ var (
 			Bold(true)
 )
 
-
-type Email struct {
-	Header string
-	Name string
-	Body string
-	From string
-	To string
-}
-
 type InboxModel struct {
-	emails []Email
+	emails []*domainGmail.Email
 	cursor int
 	viewport int
 	scroll int
-	item Email
+	bodyScroll int
+	item *domainGmail.Email
+	replying bool
 	renderer *glamour.TermRenderer
 	termWidth int
 }
 
 
-func NewInboxModel() InboxModel {
+func NewInboxModel(gmailService *gmailapi.Service) InboxModel {		
+
+	res, err := gmailService.Users.Messages.List("me").
+		LabelIds("INBOX").
+		MaxResults(50).
+		Do()
+
+	if err != nil {
+		fmt.Println(err)
+		return InboxModel{}
+	}
+
+	var userEmails []*domainGmail.Email
+
+	for _, msg := range res.Messages {
+		msg, err := gmailService.Users.Messages.Get("me", msg.Id).
+			Format("full").
+			Do()
+
+		if err != nil {
+			continue
+		}
+
+		email, err := domainGmail.FromMessage(msg)
+		if err != nil {
+			continue
+		}
+
+		userEmails = append(userEmails, email)
+	}
+
 
 	r, _ := glamour.NewTermRenderer(
 		glamour.WithAutoStyle(),
@@ -58,54 +84,12 @@ func NewInboxModel() InboxModel {
 	)
 
 	return InboxModel{
-		emails: []Email{
-			{
-				Header: "Header123",
-				Name: "Company",
-				Body: "some email 1",
-				From: "someuser@gmail.comhfffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffjfjfjfjfjfjfjjfjfjfjfjffjj",
-				To: "someuser@gmail.com",
-			},
-			{
-				Header: "Header123",
-				Name: "Company",
-				Body: "some email 2",
-				From: "someuser@gmail.com",
-				To: "someuser@gmail.com",
-			},
-			{
-				Header: "Header123",
-				Name: "Company",
-				Body: "some email 3",
-				From: "someuser@gmail.com",
-				To: "someuser@gmail.com",
-			},
-			{
-				Header: "Header123",
-				Name: "Company",
-				Body: "some email 4",
-				From: "someuser@gmail.com",
-				To: "someuser@gmail.com",
-			},
-			{
-				Header: "Header123",
-				Name: "Company",
-				Body: "some email 5",
-				From: "someuser@gmail.com",
-				To: "someuser@gmail.com",
-			},
-			{
-				Header: "Header123",
-				Name: "Company",
-				Body: "some email 6",
-				From: "someuser@gmail.com",
-				To: "someuser@gmail.com",
-			},
-		},
+		emails: userEmails,
 		cursor: 0,
-		viewport: 10,
+		viewport: 100,
 		scroll: 0,
-		item: Email{},
+		item: &domainGmail.Email{},
+		replying: false,
 		renderer: r,
 	}
 }
@@ -130,33 +114,72 @@ func (m InboxModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch msg.String() {
 
 		case "backspace", "esc":
-			m.item = Email{}
+			if m.replying {
+				m.replying = false
+			} else {
+				m.item = &domainGmail.Email{}
+			}
 
 
 		case "q", "ctrl+c":
-			return m, tea.Quit
+			if m.item.ID == "" {
+				return m, tea.Quit
+			}
 
 		case "k", "up":	
-			if m.cursor > 0 {
-				m.cursor --
+			// scrolling in the email view
+			if m.item.ID != "" {
+				if m.bodyScroll > 0 {
+					m.bodyScroll--
+				}
+			} else {
+				// scrolling in the inbox view
+
+				if m.cursor > 0 {
+					m.cursor --
+				}
+
+				if m.cursor < m.scroll {
+					m.scroll = m.cursor
+				}
 			}
 
-			if m.cursor < m.scroll {
-				m.scroll = m.cursor
-			}
 		case "j", "down":
-			if m.cursor < len(m.emails)-1 {
-				m.cursor++
-			}
+			// scrolling in the email view
+			if m.item.ID != "" {
+				lines := strings.Split(m.item.Body, "\n")
+				maxScroll := len(lines) - 50
 
-			if m.cursor >= m.scroll+m.viewport {
-				m.scroll = m.cursor - m.viewport + 1
+				if maxScroll < 0 {
+					maxScroll = 0
+				}
+
+				if m.bodyScroll < maxScroll {
+					m.bodyScroll++
+				}
+			} else {
+				// scrolling in the inbox view
+				if m.cursor < len(m.emails)-1 {
+					m.cursor++
+				}
+
+				if m.cursor >= m.scroll+m.viewport {
+					m.scroll = m.cursor - m.viewport + 1
+				}
 			}
+			
 
 		case "enter":
 
-			if m.item == (Email{}) {
+			if m.item.ID == "" {
 				m.item = m.emails[m.cursor]	
+				m.bodyScroll = 0
+			}
+
+		case "r":
+
+			if m.item.ID != "" {
+				m.replying = true	
 			}
 			
 		}
@@ -171,30 +194,75 @@ func (m InboxModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m InboxModel) View() string {
 
-	if m.item != (Email{}) {
-		s := fmt.Sprintf("j/k scroll - esc/backspace exit - r reply - o browser \n\nHeader: %s \nFrom: %s \n\nBody: %s", m.item.Header, m.item.From, m.item.Body)
+	if m.replying {
+		s := "replying"
+		title := titleStyle.Render(" Reply ")
+		box := boxStyle.Render(s)
+		
+		return fmt.Sprintf("%s\n%s\n", title, box) 
+	}
+
+	if m.item.ID != "" {
+		s := ""
+		helper, err := m.renderer.Render("`j/k`: scroll - `r`: reply - `o`: browser - `esc/backspace`: exit")
+		bodyRendered, err := m.renderer.Render(m.item.Body)
+
+		if err != nil {
+			s += "Error rendering markdown content."
+		} else {
+
+			lines := strings.Split(bodyRendered, "\n")
+			lines[m.bodyScroll] = fmt.Sprintf("%s %s", ">", lines[m.bodyScroll])
+			visibleLines := 50
+			end := m.bodyScroll + visibleLines
+
+			if end > len(lines) {
+				end = len(lines)
+			}
+
+			start := m.bodyScroll
+			if start > len(lines) {
+				end = len(lines)
+			}
+
+			visibleBody := strings.Join(lines[start:end], "\n")
+
+			s += fmt.Sprintf("%s \n\nSubject: %s \nFrom: %s \n\n %s",
+				helper,
+				m.item.Subject,
+				m.item.From,
+				visibleBody,
+			)
+		}
  
+	 
 		title := titleStyle.Render(" Email View ")
 		box := boxStyle.Render(s)
 		return fmt.Sprintf("%s\n%s\n", title, box) 
 	}
 
-	s := "j/k scroll - enter pick - q/ctrl+c exit \n\n"
-
-
-	end := m.scroll + m.viewport
-	if end > len(m.emails) {
-		end = len(m.emails)
-	}
-
-	for i := m.scroll; i < end; i++ {
-		cursor := " "
-
-		if m.cursor == i {
-			cursor = cursorStyle.Render(">")
+	s := ""
+	helper , err := m.renderer.Render("`j/k`: scroll - `enter`: pick - `q/ctrl+c`: exit")
+	if err != nil {
+		s += "Error rendering markdown content."
+	} else {
+		s += helper
+		end := m.scroll + m.viewport
+		if end > len(m.emails) {
+			end = len(m.emails)
 		}
 
-		s += fmt.Sprintf("%s %s - %s - %s\n", cursor, m.emails[i].Name, m.emails[i].Header, m.emails[i].From)
+		for i := m.scroll; i < end; i++ {
+			cursor := " "
+
+			if m.cursor == i {
+				cursor = cursorStyle.Render(">")
+			}
+
+			s += fmt.Sprintf("%s %s - %s\n", cursor, m.emails[i].From, m.emails[i].Subject)
+
+		}
+	
 
 	}
 
