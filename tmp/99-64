@@ -1,7 +1,0 @@
-case "o":
-			if m.item.ID != "" && !m.replying {
-				// The Gmail web interface expects a user index (e.g. 0) in the /u/<index>/ path.
-				// Using the full email address here leads to a 404, so use the primary account index.
-				url := "https://mail.google.com/mail/u/0/#all/" + m.item.ID
-				auth.OpenBrowser(url)
-			}
