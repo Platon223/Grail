@@ -13,7 +13,7 @@ var inboxCmd = &cobra.Command{
 	Use:   "inbox",
 	Short: "inbox command launches the tui for the main inbox",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		
+
 		gmailService, err := inboxInter.GetMainInboxEmails()
 		if err != nil {
 			fmt.Println(err)

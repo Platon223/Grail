@@ -83,7 +83,7 @@ func tokenFromBrowser(config *oauth2.Config) (*oauth2.Token, error) {
 	authURL := config.AuthCodeURL("state-token", oauth2.AccessTypeOffline)
 
 	fmt.Println("Opening browser for Gmail authorization...")
-	openBrowser(authURL)
+	OpenBrowser(authURL)
 	fmt.Printf("\nIf browser didn't open, visit this URL:\n%s\n\n", authURL)
 	fmt.Print("Paste the authorization code here: ")
 
@@ -123,7 +123,7 @@ func saveToken(token *oauth2.Token) {
 	json.NewEncoder(f).Encode(token)
 }
 
-func openBrowser(url string) {
+func OpenBrowser(url string) {
 	var cmd string
 	var args []string
 

@@ -1,63 +1,37 @@
-package inbox
+<Context>
+You receive a selection in neovim that you need to replace with new code.
+The selection's contents may contain notes, incorporate the notes every time if there are some.
+consider the context of the selection and what you are suppose to be implementing
+<SELECTION_LOCATION>
+range(point(159,1),point(182,4))
+</SELECTION_LOCATION>
+<SELECTION_CONTENT>
+		case "j", "down":
+			// scrolling in the email view
+			if m.item.ID != "" {
+				lines := strings.Split(m.item.Body, "\n")
+				maxScroll := len(lines) - 50
 
-import (
-	//	"github.com/charmbracelet/bubbles/list"
-	//	"github.com/charmbracelet/bubbles/viewport"
-	"fmt"
-	"strings"
+				if maxScroll < 0 {
+					maxScroll = 0
+				}
 
-	//	"github.com/charmbracelet/bubbles/viewport"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/glamour"
-	gmailapi "google.golang.org/api/gmail/v1"
+				if m.bodyScroll <= maxScroll {
+					m.bodyScroll++
+				}
+			} else {
+				// scrolling in the inbox view
+				if m.cursor < len(m.emails)-1 {
+					m.cursor++
+				}
 
-	"github.com/Platon223/Grail/internal/domain/auth"
-	domainGmail "github.com/Platon223/Grail/internal/domain/email"
-	"github.com/charmbracelet/lipgloss"
-	"github.com/atotto/clipboard"
-)
-
-
-var (
-	boxStyle = lipgloss.NewStyle().
-			Border(lipgloss.RoundedBorder()).
-			BorderForeground(lipgloss.Color("#6e6a86")).
-			Padding(1, 2)
-
-	titleStyle = lipgloss.NewStyle().
-			Background(lipgloss.Color("#31748f")).
-			Foreground(lipgloss.Color("230")).
-			Padding(0, 1).
-			Bold(true)
-
-	cursorStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#eb6f92")).
-			Bold(true)
-)
-
-type InboxModel struct {
-	emails []*domainGmail.Email
-	userEmail string
-	cursor int
-	viewport int
-	scroll int
-	bodyScroll int
-	bodyLine int
-	item *domainGmail.Email
-	replying bool
-	renderer *glamour.TermRenderer
-	termWidth int
-}
-
-
-func NewInboxModel(gmailService *gmailapi.Service) InboxModel {		
-
-	res, err := gmailService.Users.Messages.List("me").
-		LabelIds("INBOX").
-		MaxResults(50).
-		Do()
-
-	profile, err := gmailService.Users.GetProfile("me").Do()
+				if m.cursor >= m.scroll+m.viewport {
+					m.scroll = m.cursor - m.viewport + 1
+				}
+			}
+			
+</SELECTION_CONTENT>
+<SURROUNDING_CONTEXT>
 
 	if err != nil {
 		fmt.Println(err)
@@ -122,24 +96,11 @@ func (m InboxModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 
 		case "o":
-            if m.item.ID != "" && !m.replying {
+			if m.item.ID != "" && !m.replying {
+				url := "https://mail.google.com/mail/u/" + m.userEmail + "/#all/" + m.item.ID
+				auth.OpenBrowser(url)	
+			}
 
-                base := "https://mail.google.com/mail/u/0/"
-
-                if m.userEmail != "" {
-
-                    ae := strings.ReplaceAll(m.userEmail, "@", "%40")
-                    ae = strings.ReplaceAll(ae, "+", "%2B")
-                    ae = strings.ReplaceAll(ae, "&", "%26")
-                    ae = strings.ReplaceAll(ae, "?", "%3F")
-                    ae = strings.ReplaceAll(ae, "#", "%23")
-
-                    url := base + "?authuser=" + ae + "#all/" + m.item.ID
-                    auth.OpenBrowser(url)
-                } else {
-                    auth.OpenBrowser(base + "#all/" + m.item.ID)
-                }
-            }
 		case "backspace", "esc":
 			if m.replying {
 				m.replying = false
@@ -156,9 +117,7 @@ func (m InboxModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "k", "up":	
 			// scrolling in the email view
 			if m.item.ID != "" {
-				if m.bodyLine > 0 {
-					m.bodyLine--
-				} else if m.bodyScroll > 0 {
+				if m.bodyScroll > 0 {
 					m.bodyScroll--
 				}
 			} else {
@@ -176,28 +135,16 @@ func (m InboxModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "j", "down":
 			// scrolling in the email view
 			if m.item.ID != "" {
+				lines := strings.Split(m.item.Body, "\n")
+				maxScroll := len(lines) - 50
 
-				visibleLines := 50
-
-				bodyRendered, err := m.renderer.Render(m.item.Body)
-				
-				var lines []string
-
-				if err != nil {
-					lines = strings.Split(m.item.Body, "\n")
-				} else {
-					lines = strings.Split(bodyRendered, "\n")
+				if maxScroll < 0 {
+					maxScroll = 0
 				}
 
-				totalLines := len(lines)
-
-				if m.bodyLine < visibleLines-1 && m.bodyScroll+m.bodyLine < totalLines-1 {
-					m.bodyLine++
-				} else if m.bodyScroll+m.bodyLine < totalLines-1 {
-					// cursor is at bottom of window, scroll down instead
+				if m.bodyScroll <= maxScroll {
 					m.bodyScroll++
 				}
-
 			} else {
 				// scrolling in the inbox view
 				if m.cursor < len(m.emails)-1 {
@@ -208,13 +155,13 @@ func (m InboxModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.scroll = m.cursor - m.viewport + 1
 				}
 			}
+			
 
 		case "enter":
 
 			if m.item.ID == "" {
 				m.item = m.emails[m.cursor]	
 				m.bodyScroll = 0
-				m.bodyLine = 0
 			}
 
 		case "r":
@@ -223,27 +170,15 @@ func (m InboxModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.replying = true	
 			}
 			
-		
-
-		case "y":
-				
-			var lines []string
-
-			lines = strings.Split(m.item.Body, "\n")
-
-			currentLine := lines[m.bodyScroll + m.bodyLine]
-
-			err := clipboard.WriteAll(currentLine)
-			if err != nil {	
-			}
 		}
-
 	}
 
 	var cmd tea.Cmd
 
 	return m, cmd
 }
+
+
 
 func (m InboxModel) View() string {
 
@@ -257,27 +192,15 @@ func (m InboxModel) View() string {
 
 	if m.item.ID != "" {
 		s := ""
+		helper, err := m.renderer.Render("`j/k`: scroll - `r`: reply - `o`: browser - `esc/backspace`: exit")
 		bodyRendered, err := m.renderer.Render(m.item.Body)
-		helper, err := m.renderer.Render("`j/k`: scroll - `r`: reply - `o`: browser - `esc/backspace`: exit - `y`: Copy the current line")
 
 		if err != nil {
 			s += "Error rendering markdown content."
 		} else {
 
 			lines := strings.Split(bodyRendered, "\n")
-
-			selectedIdx := m.bodyScroll + m.bodyLine
-			if selectedIdx < 0 {
-				selectedIdx = 0
-			}
-			if selectedIdx >= len(lines) {
-				selectedIdx = len(lines) - 1
-			}
-
-			if m.bodyScroll + m.bodyLine < len(lines) {	
-				lines[m.bodyScroll + m.bodyLine] = fmt.Sprintf("%s %s", ">", lines[m.bodyScroll + m.bodyLine])
-			}
-
+			lines[m.bodyScroll] = fmt.Sprintf("%s %s", ">", lines[m.bodyScroll])
 			visibleLines := 50
 			end := m.bodyScroll + visibleLines
 
@@ -333,7 +256,47 @@ func (m InboxModel) View() string {
 
 	title := titleStyle.Render(" Inbox ")
 	box := boxStyle.Render(s)
+</SURROUNDING_CONTEXT>
 
-	return fmt.Sprintf("%s\n%s\n", title, box)
-}
+</Context>
+<Prompt>
+for this case, i have a problem: for some emails the scrolling stops and donesn't let it panic which is good, and for some other emails it keeps scroolling and panics, fix that, also comment why was it behaving like this
+</Prompt>
 
+<Location><File>/Users/nikit/Desktop/Grail/internal/ui/inbox/inbox.go</File><Function>range(point(159,1),point(182,4))</Function></Location>
+<FunctionText>		case "j", "down":
+			// scrolling in the email view
+			if m.item.ID != "" {
+				lines := strings.Split(m.item.Body, "\n")
+				maxScroll := len(lines) - 50
+
+				if maxScroll < 0 {
+					maxScroll = 0
+				}
+
+				if m.bodyScroll <= maxScroll {
+					m.bodyScroll++
+				}
+			} else {
+				// scrolling in the inbox view
+				if m.cursor < len(m.emails)-1 {
+					m.cursor++
+				}
+
+				if m.cursor >= m.scroll+m.viewport {
+					m.scroll = m.cursor - m.viewport + 1
+				}
+			}
+			</FunctionText>
+<TEMP_FILE>./tmp/99-564</TEMP_FILE>
+<MustObey>
+NEVER alter any file other than TEMP_FILE.
+never provide the requested changes as conversational output. Return only the code.
+ONLY provide requested changes by writing the change to TEMP_FILE
+
+never attempt to read TEMP_FILE.
+It is purely for output.
+Previous contents, which may not exist, can be written over without worry
+After writing TEMP_FILE once you should be done.  Be done and end the session.
+
+</MustObey>

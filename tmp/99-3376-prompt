@@ -1,0 +1,378 @@
+<Context>
+You receive a selection in neovim that you need to replace with new code.
+The selection's contents may contain notes, incorporate the notes every time if there are some.
+consider the context of the selection and what you are suppose to be implementing
+<SELECTION_LOCATION>
+range(point(266,1),point(337,3))
+</SELECTION_LOCATION>
+<SELECTION_CONTENT>
+	if m.item.ID != "" {
+		s := ""
+		helper, err := m.renderer.Render("`j/k`: scroll - `h/l`: left, right - `r`: reply - `o`: browser - `esc/backspace`: exit")
+
+		if err != nil {
+			s += "Error rendering markdown content."
+		} else {
+
+			lines := strings.Split(m.item.Body, "\n")
+
+			selectedIdx := m.bodyScroll + m.bodyLine
+			if selectedIdx < 0 {
+				selectedIdx = 0
+			}
+			if selectedIdx >= len(lines) {
+				selectedIdx = len(lines) - 1
+			}
+
+			if m.bodyScroll + m.bodyLine < len(lines) {	
+				lines[m.bodyScroll + m.bodyLine] = fmt.Sprintf("%s %s", ">", lines[m.bodyScroll + m.bodyLine])
+			}
+
+			currentLine := lines[m.bodyScroll + m.bodyLine]
+
+			if m.bodyCol >= 0 && m.bodyCol < len(currentLine) - 1 {
+
+				cursorStart := "\033[7m"
+				cursorEnd   := "\033[27m"
+
+				currentLine = fmt.Sprintf("%s%s%c%s%s", 
+					currentLine[:m.bodyCol], 
+					cursorStart, 
+					currentLine[m.bodyCol], 
+					cursorEnd, 
+					currentLine[m.bodyCol+1:],
+				)
+
+				lines[m.bodyScroll + m.bodyLine] = currentLine
+			}
+
+			visibleLines := 50
+			end := m.bodyScroll + visibleLines
+
+			if end > len(lines) {
+				end = len(lines)
+			}
+
+			start := m.bodyScroll
+			if start > len(lines) {
+				end = len(lines)
+			}
+
+			visibleBody := strings.Join(lines[start:end], "\n")
+
+			bodyRendered, err := m.renderer.Render(visibleBody)
+			if err != nil {
+				bodyRendered = visibleBody
+			}
+
+			s += fmt.Sprintf("%s \n\nSubject: %s \nFrom: %s \n\n %s",
+				helper,
+				m.item.Subject,
+				m.item.From,
+				bodyRendered,
+			)
+		}
+ 
+	 
+		title := titleStyle.Render(" Email View ")
+		box := boxStyle.Render(s)
+		return fmt.Sprintf("%s\n%s\n", title, box) 
+	}
+</SELECTION_CONTENT>
+<SURROUNDING_CONTEXT>
+
+				if m.cursor > 0 {
+					m.cursor --
+				}
+
+				if m.cursor < m.scroll {
+					m.scroll = m.cursor
+				}
+			}
+
+		case "j", "down":
+			// scrolling in the email view
+			if m.item.ID != "" {
+
+				visibleLines := 50
+
+				bodyRendered, err := m.renderer.Render(m.item.Body)
+				
+				var lines []string
+
+				if err != nil {
+					lines = strings.Split(m.item.Body, "\n")
+				} else {
+					lines = strings.Split(bodyRendered, "\n")
+				}
+
+				totalLines := len(lines)
+
+				if m.bodyLine < visibleLines-1 && m.bodyScroll+m.bodyLine < totalLines-1 {
+					m.bodyLine++
+				} else if m.bodyScroll+m.bodyLine < totalLines-1 {
+					// cursor is at bottom of window, scroll down instead
+					m.bodyScroll++
+				}
+
+			} else {
+				// scrolling in the inbox view
+				if m.cursor < len(m.emails)-1 {
+					m.cursor++
+				}
+
+				if m.cursor >= m.scroll+m.viewport {
+					m.scroll = m.cursor - m.viewport + 1
+				}
+			}
+
+		case "l":
+
+			if m.item.ID != "" {				
+
+				currentLineIdx := m.bodyScroll + m.bodyLine
+				lines := strings.Split(m.item.Body, "\n")
+				if currentLineIdx < len(lines) {
+					if m.bodyCol < len(lines[currentLineIdx])-1 {
+						m.bodyCol++
+					}
+				}
+			}
+
+		case "h":
+			if m.item.ID != "" {
+				if m.bodyCol > 0 {
+					m.bodyCol--
+				}
+			}
+
+
+		case "enter":
+
+			if m.item.ID == "" {
+				m.item = m.emails[m.cursor]	
+				m.bodyScroll = 0
+				m.bodyCol = 0
+				m.bodyLine = 0
+			}
+
+		case "r":
+
+			if m.item.ID != "" {
+				m.replying = true	
+			}
+			
+		}
+	}
+
+	var cmd tea.Cmd
+
+	return m, cmd
+}
+
+func (m InboxModel) View() string {
+
+	if m.replying {
+		s := "replying"
+		title := titleStyle.Render(" Reply ")
+		box := boxStyle.Render(s)
+		
+		return fmt.Sprintf("%s\n%s\n", title, box) 
+	}
+
+	if m.item.ID != "" {
+		s := ""
+		helper, err := m.renderer.Render("`j/k`: scroll - `h/l`: left, right - `r`: reply - `o`: browser - `esc/backspace`: exit")
+
+		if err != nil {
+			s += "Error rendering markdown content."
+		} else {
+
+			lines := strings.Split(m.item.Body, "\n")
+
+			selectedIdx := m.bodyScroll + m.bodyLine
+			if selectedIdx < 0 {
+				selectedIdx = 0
+			}
+			if selectedIdx >= len(lines) {
+				selectedIdx = len(lines) - 1
+			}
+
+			if m.bodyScroll + m.bodyLine < len(lines) {	
+				lines[m.bodyScroll + m.bodyLine] = fmt.Sprintf("%s %s", ">", lines[m.bodyScroll + m.bodyLine])
+			}
+
+			currentLine := lines[m.bodyScroll + m.bodyLine]
+
+			if m.bodyCol >= 0 && m.bodyCol < len(currentLine) - 1 {
+
+				cursorStart := "\033[7m"
+				cursorEnd   := "\033[27m"
+
+				currentLine = fmt.Sprintf("%s%s%c%s%s", 
+					currentLine[:m.bodyCol], 
+					cursorStart, 
+					currentLine[m.bodyCol], 
+					cursorEnd, 
+					currentLine[m.bodyCol+1:],
+				)
+
+				lines[m.bodyScroll + m.bodyLine] = currentLine
+			}
+
+			visibleLines := 50
+			end := m.bodyScroll + visibleLines
+
+			if end > len(lines) {
+				end = len(lines)
+			}
+
+			start := m.bodyScroll
+			if start > len(lines) {
+				end = len(lines)
+			}
+
+			visibleBody := strings.Join(lines[start:end], "\n")
+
+			bodyRendered, err := m.renderer.Render(visibleBody)
+			if err != nil {
+				bodyRendered = visibleBody
+			}
+
+			s += fmt.Sprintf("%s \n\nSubject: %s \nFrom: %s \n\n %s",
+				helper,
+				m.item.Subject,
+				m.item.From,
+				bodyRendered,
+			)
+		}
+ 
+	 
+		title := titleStyle.Render(" Email View ")
+		box := boxStyle.Render(s)
+		return fmt.Sprintf("%s\n%s\n", title, box) 
+	}
+
+	s := ""
+	helper , err := m.renderer.Render("`j/k`: scroll - `enter`: pick - `q/ctrl+c`: exit")
+	if err != nil {
+		s += "Error rendering markdown content."
+	} else {
+		s += helper
+		end := m.scroll + m.viewport
+		if end > len(m.emails) {
+			end = len(m.emails)
+		}
+
+		for i := m.scroll; i < end; i++ {
+			cursor := " "
+
+			if m.cursor == i {
+				cursor = cursorStyle.Render(">")
+			}
+
+			s += fmt.Sprintf("%s %s - %s\n", cursor, m.emails[i].From, m.emails[i].Subject)
+
+		}
+	
+
+	}
+
+	title := titleStyle.Render(" Inbox ")
+	box := boxStyle.Render(s)
+
+	return fmt.Sprintf("%s\n%s\n", title, box)
+}
+
+</SURROUNDING_CONTEXT>
+
+</Context>
+<Prompt>
+instead of a cursir i see [7m>[27m, don't modify the block just write down the comment at the start of the block why and how to fix
+</Prompt>
+
+<Location><File>/Users/nikit/Desktop/Grail/internal/ui/inbox/inbox.go</File><Function>range(point(266,1),point(337,3))</Function></Location>
+<FunctionText>	if m.item.ID != "" {
+		s := ""
+		helper, err := m.renderer.Render("`j/k`: scroll - `h/l`: left, right - `r`: reply - `o`: browser - `esc/backspace`: exit")
+
+		if err != nil {
+			s += "Error rendering markdown content."
+		} else {
+
+			lines := strings.Split(m.item.Body, "\n")
+
+			selectedIdx := m.bodyScroll + m.bodyLine
+			if selectedIdx < 0 {
+				selectedIdx = 0
+			}
+			if selectedIdx >= len(lines) {
+				selectedIdx = len(lines) - 1
+			}
+
+			if m.bodyScroll + m.bodyLine < len(lines) {	
+				lines[m.bodyScroll + m.bodyLine] = fmt.Sprintf("%s %s", ">", lines[m.bodyScroll + m.bodyLine])
+			}
+
+			currentLine := lines[m.bodyScroll + m.bodyLine]
+
+			if m.bodyCol >= 0 && m.bodyCol < len(currentLine) - 1 {
+
+				cursorStart := "\033[7m"
+				cursorEnd   := "\033[27m"
+
+				currentLine = fmt.Sprintf("%s%s%c%s%s", 
+					currentLine[:m.bodyCol], 
+					cursorStart, 
+					currentLine[m.bodyCol], 
+					cursorEnd, 
+					currentLine[m.bodyCol+1:],
+				)
+
+				lines[m.bodyScroll + m.bodyLine] = currentLine
+			}
+
+			visibleLines := 50
+			end := m.bodyScroll + visibleLines
+
+			if end > len(lines) {
+				end = len(lines)
+			}
+
+			start := m.bodyScroll
+			if start > len(lines) {
+				end = len(lines)
+			}
+
+			visibleBody := strings.Join(lines[start:end], "\n")
+
+			bodyRendered, err := m.renderer.Render(visibleBody)
+			if err != nil {
+				bodyRendered = visibleBody
+			}
+
+			s += fmt.Sprintf("%s \n\nSubject: %s \nFrom: %s \n\n %s",
+				helper,
+				m.item.Subject,
+				m.item.From,
+				bodyRendered,
+			)
+		}
+ 
+	 
+		title := titleStyle.Render(" Email View ")
+		box := boxStyle.Render(s)
+		return fmt.Sprintf("%s\n%s\n", title, box) 
+	}</FunctionText>
+<TEMP_FILE>./tmp/99-3376</TEMP_FILE>
+<MustObey>
+NEVER alter any file other than TEMP_FILE.
+never provide the requested changes as conversational output. Return only the code.
+ONLY provide requested changes by writing the change to TEMP_FILE
+
+never attempt to read TEMP_FILE.
+It is purely for output.
+Previous contents, which may not exist, can be written over without worry
+After writing TEMP_FILE once you should be done.  Be done and end the session.
+
+</MustObey>

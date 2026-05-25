@@ -1,0 +1,4 @@
+ /Users/nikit/Desktop/Grail/internal/ui/inbox/inbox.go:159:1,23,Update handler for `j/down` uses raw m.item.Body to compute maxScroll and increment m.bodyScroll; this can diverge from the rendered line count and allow m.bodyScroll to become invalid
+ /Users/nikit/Desktop/Grail/internal/ui/inbox/inbox.go:220:1,1,Body is rendered via glamour here; the rendered line count may differ from the raw body used in Update
+ /Users/nikit/Desktop/Grail/internal/ui/inbox/inbox.go:226:1,2,Rendered body is split into lines and then indexed; if m.bodyScroll >= len(lines) the subsequent assignment will panic
+ /Users/nikit/Desktop/Grail/internal/ui/inbox/inbox.go:227:1,1,The unguarded assignment lines[m.bodyScroll] = ... is the direct panic site when bodyScroll is out of range

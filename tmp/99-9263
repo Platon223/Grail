@@ -1,0 +1,4 @@
+type Example struct {
+    name string
+    age  int
+}

@@ -1,0 +1,44 @@
+case "j", "down":
+	// scrolling in the email view
+	if m.item.ID != "" {
+		// The renderer in View applies word-wrapping which changes the number
+		// of visible lines compared to splitting the raw message body. The
+		// original code split m.item.Body which produced a different line
+		// count than the rendered output, and also used `<=` when deciding to
+		// increment the scroll. Those two issues could allow m.bodyScroll to
+		// become larger than the number of rendered lines and cause a panic
+		// when View later indexed into the lines slice.
+		visibleLines := 50
+
+		// Render the body the same way View does so line counts match.
+		bodyRendered, err := m.renderer.Render(m.item.Body)
+		var lines []string
+		if err != nil {
+			// If rendering fails, fall back to raw body split.
+			lines = strings.Split(m.item.Body, "\n")
+		} else {
+			lines = strings.Split(bodyRendered, "\n")
+		}
+
+		maxScroll := len(lines) - visibleLines
+		if maxScroll < 0 {
+			maxScroll = 0
+		}
+
+		// Only increment while strictly less than maxScroll. Also ensure we
+		// clamp m.bodyScroll to the valid range to be defensive.
+		if m.bodyScroll < maxScroll {
+			m.bodyScroll++
+		} else if m.bodyScroll > maxScroll {
+			m.bodyScroll = maxScroll
+		}
+	} else {
+		// scrolling in the inbox view
+		if m.cursor < len(m.emails)-1 {
+			m.cursor++
+		}
+
+		if m.cursor >= m.scroll+m.viewport {
+			m.scroll = m.cursor - m.viewport + 1
+		}
+	}
