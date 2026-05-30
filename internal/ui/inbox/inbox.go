@@ -45,6 +45,10 @@ type InboxModel struct {
 	bodyLine int
 	item *domainGmail.Email
 	replying bool
+	replyStage int
+	replyTo string
+	replySubject string
+	replyBody string
 	renderer *glamour.TermRenderer
 	termWidth int
 }
@@ -143,6 +147,7 @@ func (m InboxModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "backspace", "esc":
 			if m.replying {
 				m.replying = false
+				m.replyStage = 0
 			} else {
 				m.item = &domainGmail.Email{}
 			}
@@ -211,6 +216,56 @@ func (m InboxModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		case "enter":
 
+if m.replying {
+    // NOTE: to fully enable interactive text input you should:
+    // 1) import the textinput package in this file (example, commented out):
+    //    // import textinput "github.com/charmbracelet/bubbles/textinput"
+    // 2) add a TextInput field to the InboxModel struct, for example (commented out):
+    //    // TextInput textinput.Model // used to capture typed input while replying
+    // 3) initialize TextInput when entering reply mode (set cursor styles, placeholders, etc.)
+
+    // When TextInput is wired up, forward other keypresses (backspace, regular characters, etc.)
+    // to the text input model from the top-level key handling. Example (commented):
+    //
+    // if m.replying {
+    //     var cmd tea.Cmd
+    //     m.TextInput, cmd = m.TextInput.Update(msg)
+    //     return m, cmd
+    // }
+
+    // The block below shows how Enter should behave once the textinput is available.
+    // It's commented out so you can enable it after adding the struct field + import.
+    /*
+    if m.replyStage < 3 {
+        // accept the current value from the textinput and store it in the model
+        entered := m.TextInput.Value()
+        switch m.replyStage {
+        case 0:
+            m.replyTo = entered
+        case 1:
+            m.replySubject = entered
+        case 2:
+            m.replyBody = entered
+        }
+
+        // reset the textinput value for the next field and advance stage
+        m.TextInput.SetValue("")
+        m.replyStage++
+        // optionally set a new placeholder or focus state on m.TextInput here
+    } else {
+        // replyStage == 3: this is the preview/confirm stage. Here you can send the reply.
+        // e.g. go send the message, or call a method like: m.sendReply()
+    }
+    */
+
+    // Fallback behavior while textinput isn't wired up: advance stages as before
+    if m.replyStage < 3 {
+        m.replyStage++
+    } else {
+        // At final stage (preview) Enter could mean "send" — implement when ready.
+    }
+}
+
 			if m.item.ID == "" {
 				m.item = m.emails[m.cursor]	
 				m.bodyScroll = 0
@@ -248,11 +303,39 @@ func (m InboxModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m InboxModel) View() string {
 
 	if m.replying {
-		s := "replying"
+		s := ""
+
+		helper, err := m.renderer.Render("`enter`: next - `esc/backspace`: cancel")
+		if err != nil {
+			s += "Error rendering markdown content."
+		} else {
+			s += helper + "\n\n"
+		}
+	 
+
+		toCursor := " "
+		subjCursor := " "
+		bodyCursor := " "
+		if m.replyStage == 0 {
+			toCursor = cursorStyle.Render(">")
+		} else if m.replyStage == 1 {
+			subjCursor = cursorStyle.Render(">")
+		} else if m.replyStage == 2 {
+			bodyCursor = cursorStyle.Render(">")
+		}
+
+		s += fmt.Sprintf("%s To: %s\n", toCursor, m.replyTo)
+		s += fmt.Sprintf("%s Subject: %s\n", subjCursor, m.replySubject)
+		s += fmt.Sprintf("%s Body: %s\n\n", bodyCursor, m.replyBody)
+
+		if m.replyStage == 3 {
+			confirm, _ := m.renderer.Render("`Reply Preview`")
+			s += fmt.Sprintf("%s\n\nTo: %s\nSubject: %s\n\n%s\n", confirm, m.replyTo, m.replySubject, m.replyBody)
+		}
+
 		title := titleStyle.Render(" Reply ")
 		box := boxStyle.Render(s)
-		
-		return fmt.Sprintf("%s\n%s\n", title, box) 
+		return fmt.Sprintf("%s\n%s\n", title, box)
 	}
 
 	if m.item.ID != "" {
