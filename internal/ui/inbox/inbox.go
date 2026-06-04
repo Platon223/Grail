@@ -172,6 +172,9 @@ func (m InboxModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					if err != nil {
 						fmt.Println("send error: ", err)
 					}
+
+					m.replying = true
+					m.replyStage = 0
 				}
 
 			default:
