@@ -1,6 +1,7 @@
 package email
 
 import (
+	"fmt"
 
 	"encoding/base64"
 	"time"
@@ -21,6 +22,25 @@ type Email struct {
 	LabelIDs      []string
 	Unread        bool
 	HasAttachment bool
+}
+
+
+func SendReply(svc *gmailapi.Service, to, subject, body, threadID string) error {
+
+    raw := fmt.Sprintf(
+        "To: %s\r\nSubject: %s\r\nContent-Type: text/plain; charset=UTF-8\r\n\r\n%s",
+        to, subject, body,
+    )
+
+    encoded := base64.URLEncoding.EncodeToString([]byte(raw))
+
+    msg := &gmailapi.Message{
+        Raw:      encoded,
+        ThreadId: threadID,
+    }
+
+    _, err := svc.Users.Messages.Send("me", msg).Do()
+    return err
 }
 
 func FromMessage(msg *gmailapi.Message) (*Email, error) {

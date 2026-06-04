@@ -51,7 +51,7 @@ func LoadConfig() (*oauth2.Config, error) {
     if err != nil {
         return nil, fmt.Errorf("credentials not found, run: grail auth setup")
     }
-    config, err := google.ConfigFromJSON(data, gmailapi.GmailReadonlyScope)
+    config, err := google.ConfigFromJSON(data, gmailapi.GmailReadonlyScope, gmailapi.GmailSendScope)
     if err != nil {
         return nil, err
     }
