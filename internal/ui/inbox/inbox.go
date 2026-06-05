@@ -147,6 +147,10 @@ func (m InboxModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					var cmd tea.Cmd
 					m.textInput, cmd = m.textInput.Update(msg)
 					return m, cmd
+
+				case 3:
+					m.replyStage--
+
 				}
 				m.textInput.SetValue("")
 				m.replyStage++
@@ -173,8 +177,9 @@ func (m InboxModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 						fmt.Println("send error: ", err)
 					}
 
-					m.replying = true
+					m.replying = false
 					m.replyStage = 0
+
 				}
 
 			default:
@@ -326,7 +331,7 @@ func (m InboxModel) View() string {
 	if m.replying {
 		s := ""
 
-		helper, err := m.renderer.Render("`enter`: next - `esc`: cancel - `skip two lines`: make a new paragraph")
+		helper, err := m.renderer.Render("`enter`: next - `esc`: cancel - `skip two lines`: make a new paragraph - `ctrl+d`: finish body and go to preview")
 		if err != nil {
 			s += "Error rendering markdown content."
 		} else {
@@ -350,7 +355,7 @@ func (m InboxModel) View() string {
 				renderedBody = m.replyBody
 			}
 			s += fmt.Sprintf("%s\n\nTo: %s\nSubject: %s\n\n%s\n\n", confirm, m.replyTo, m.replySubject, renderedBody)
-			s += "Press enter to send, esc to go back."
+			s += "Press ctrl+d to send, esc to go back."
 		}
 
 		title := titleStyle.Render(" Reply ")
