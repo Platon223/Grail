@@ -13,6 +13,7 @@ import (
 type Email struct {
 	ID            string
 	ThreadID      string
+	MessageID     string
 	Subject       string
 	From          string
 	To            string
@@ -25,11 +26,11 @@ type Email struct {
 }
 
 
-func SendReply(svc *gmailapi.Service, to, subject, body, threadID string) error {
+func SendReply(svc *gmailapi.Service, to, subject, body, threadID, messageID string) error { 
 
-    raw := fmt.Sprintf(
-        "To: %s\r\nSubject: %s\r\nContent-Type: text/plain; charset=UTF-8\r\n\r\n%s",
-        to, subject, body,
+	raw := fmt.Sprintf(
+        "To: %s\r\nSubject: %s\r\nIn-Reply-To: %s\r\nReferences: %s\r\nContent-Type: text/plain; charset=UTF-8\r\n\r\n%s",
+        to, subject, messageID, messageID, body,
     )
 
     encoded := base64.URLEncoding.EncodeToString([]byte(raw))
@@ -68,6 +69,8 @@ func FromMessage(msg *gmailapi.Message) (*Email, error) {
 				e.To = h.Value
 			case "Date":
 				e.Date, _ = time.Parse("Mon, 2 Jan 2006 15:04:05 -0700", h.Value)
+			case "Message-ID":
+				e.MessageID = h.Value
 			}
 		}
 		e.Body = extractBody(msg.Payload)

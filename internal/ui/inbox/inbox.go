@@ -171,6 +171,7 @@ func (m InboxModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 						m.replySubject,
 						m.replyBody,
 						m.item.ThreadID,
+						m.item.MessageID,
 					)
 
 					if err != nil {
