@@ -58,10 +58,10 @@ type InboxModel struct {
 }
 
 
-func NewInboxModel(gmailService *gmailapi.Service) InboxModel {		
+func NewInboxModel(gmailService *gmailapi.Service, inboxType string) InboxModel {		
 
 	res, err := gmailService.Users.Messages.List("me").
-		LabelIds("INBOX").
+		LabelIds(inboxType).
 		MaxResults(50).
 		Do()
 

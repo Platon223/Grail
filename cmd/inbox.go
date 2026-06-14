@@ -9,6 +9,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var inboxType string
+
 var inboxCmd = &cobra.Command{
 	Use:   "inbox",
 	Short: "inbox command launches the tui for the main inbox",
@@ -22,7 +24,7 @@ var inboxCmd = &cobra.Command{
 
 
 		p := tea.NewProgram(
-			inbox.NewInboxModel(gmailService),
+			inbox.NewInboxModel(gmailService, inboxType),
 			tea.WithAltScreen(),
 		)
 
@@ -33,4 +35,7 @@ var inboxCmd = &cobra.Command{
 
 func init() {
 	rootCmd.AddCommand(inboxCmd)
+
+	inboxCmd.Flags().StringVarP(&inboxType, "inbox", "i", "INBOX", "Type of inbox")
+
 }
