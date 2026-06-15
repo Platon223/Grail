@@ -44,6 +44,23 @@ func SendReply(svc *gmailapi.Service, to, subject, body, threadID, messageID str
     return err
 }
 
+
+func SendEmail(svc *gmailapi.Service, to, subject, body string) error {
+    raw := fmt.Sprintf(
+        "To: %s\r\nSubject: %s\r\nContent-Type: text/plain; charset=UTF-8\r\n\r\n%s",
+        to, subject, body,
+    )
+
+    encoded := base64.URLEncoding.EncodeToString([]byte(raw))
+
+    msg := &gmailapi.Message{
+        Raw: encoded,
+    }
+
+    _, err := svc.Users.Messages.Send("me", msg).Do()
+    return err
+}
+
 func FromMessage(msg *gmailapi.Message) (*Email, error) {
 	e := &Email{
 		ID:       msg.Id,

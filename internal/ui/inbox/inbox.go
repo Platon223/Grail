@@ -1,12 +1,9 @@
 package inbox
 
 import (
-	//	"github.com/charmbracelet/bubbles/list"
-	//	"github.com/charmbracelet/bubbles/viewport"
 	"fmt"
 	"strings"
 
-	//	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/glamour"
 	gmailapi "google.golang.org/api/gmail/v1"
@@ -93,7 +90,7 @@ func NewInboxModel(gmailService *gmailapi.Service, inboxType string) InboxModel 
 
 
 	r, _ := glamour.NewTermRenderer(
-		glamour.WithAutoStyle(),
+		glamour.WithStandardStyle("dark"),
 		glamour.WithWordWrap(60),
 	)
 
@@ -129,7 +126,7 @@ func (m InboxModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.termWidth = msg.Width
 
 		m.renderer, _ = glamour.NewTermRenderer(
-			glamour.WithAutoStyle(),
+			glamour.WithStandardStyle("dark"),
 			glamour.WithWordWrap(m.termWidth - 6),
 		)
 
