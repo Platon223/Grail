@@ -53,14 +53,8 @@ type ComposeModel struct {
 }
 
 
-func NewComposeModel(gmailService *gmailapi.Service) ComposeModel {		
+func NewComposeModel(gmailService *gmailapi.Service, userEmail string) ComposeModel {		
 
-	profile, err := gmailService.Users.GetProfile("me").Do()
-
-	if err != nil {
-		fmt.Println(err)
-		return ComposeModel{}
-	}
 
 	r, _ := glamour.NewTermRenderer(
 		glamour.WithStandardStyle("dark"),
@@ -79,7 +73,7 @@ func NewComposeModel(gmailService *gmailapi.Service) ComposeModel {
 
 	return ComposeModel{
 		svc: gmailService,
-		userEmail: profile.EmailAddress,
+		userEmail: userEmail,
 		renderer: r,
 		textArea: ta,
 		textInputTo: tito,

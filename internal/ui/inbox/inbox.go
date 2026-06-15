@@ -55,38 +55,7 @@ type InboxModel struct {
 }
 
 
-func NewInboxModel(gmailService *gmailapi.Service, inboxType string) InboxModel {		
-
-	res, err := gmailService.Users.Messages.List("me").
-		LabelIds(inboxType).
-		MaxResults(50).
-		Do()
-
-	profile, err := gmailService.Users.GetProfile("me").Do()
-
-	if err != nil {
-		fmt.Println(err)
-		return InboxModel{}
-	}
-
-	var userEmails []*domainGmail.Email
-
-	for _, msg := range res.Messages {
-		msg, err := gmailService.Users.Messages.Get("me", msg.Id).
-			Format("full").
-			Do()
-
-		if err != nil {
-			continue
-		}
-
-		email, err := domainGmail.FromMessage(msg)
-		if err != nil {
-			continue
-		}
-
-		userEmails = append(userEmails, email)
-	}
+func NewInboxModel(gmailService *gmailapi.Service, inboxType string, userEmails []*domainGmail.Email, userEmail string) InboxModel {		
 
 
 	r, _ := glamour.NewTermRenderer(
@@ -103,7 +72,7 @@ func NewInboxModel(gmailService *gmailapi.Service, inboxType string) InboxModel 
 	return InboxModel{
 		svc: gmailService,
 		emails: userEmails,
-		userEmail: profile.EmailAddress,
+		userEmail: userEmail,
 		cursor: 0,
 		viewport: 100,
 		scroll: 0,
