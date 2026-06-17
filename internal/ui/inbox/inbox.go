@@ -3,6 +3,7 @@ package inbox
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/glamour"
@@ -32,6 +33,13 @@ var (
 	cursorStyle = lipgloss.NewStyle().
 			Foreground(lipgloss.Color("#eb6f92")).
 			Bold(true)
+
+	unreadStyle = lipgloss.NewStyle().
+    		Bold(true).
+    		Foreground(lipgloss.Color("#e0def4"))
+
+    readStyle = lipgloss.NewStyle().
+    		Foreground(lipgloss.Color("#908caa"))
 )
 
 type InboxModel struct {
@@ -408,7 +416,16 @@ func (m InboxModel) View() string {
 				cursor = cursorStyle.Render(">")
 			}
 
-			s += fmt.Sprintf("%s %s - %s\n", cursor, m.emails[i].From, m.emails[i].Subject)
+			timeStr := formatEmailDate(m.emails[i].Date)
+			line := fmt.Sprintf("%s - %s - %s", m.emails[i].From, m.emails[i].Subject, timeStr)
+
+			if m.emails[i].Unread {
+				line = unreadStyle.Render(line)
+			} else {
+				line = readStyle.Render(line)
+			}
+
+			s += fmt.Sprintf("%s %s\n", cursor, line)
 
 		}
 	
@@ -421,3 +438,10 @@ func (m InboxModel) View() string {
 	return fmt.Sprintf("%s\n%s\n", title, box)
 }
 
+func formatEmailDate(t time.Time) string {
+    now := time.Now()
+    if t.Year() == now.Year() && t.YearDay() == now.YearDay() {
+        return t.Format("3:04 PM")
+    }
+    return t.Format("Jan 2")
+}
