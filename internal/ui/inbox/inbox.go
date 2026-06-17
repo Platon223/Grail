@@ -52,6 +52,7 @@ type InboxModel struct {
 	textInput textarea.Model
 	renderer *glamour.TermRenderer
 	termWidth int
+	termHeight int
 }
 
 
@@ -93,6 +94,11 @@ func (m InboxModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case tea.WindowSizeMsg:
 		m.termWidth = msg.Width
+		m.termHeight = msg.Height
+		m.viewport = msg.Height - 8
+		if m.viewport < 1 {
+			m.viewport = 1
+		}
 
 		m.renderer, _ = glamour.NewTermRenderer(
 			glamour.WithStandardStyle("dark"),
@@ -219,7 +225,10 @@ func (m InboxModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			// scrolling in the email view
 			if m.item.ID != "" {
 
-				visibleLines := 50
+				visibleLines := m.termHeight - 10 
+				if visibleLines < 1 {
+					visibleLines = 1
+				}
 
 				bodyRendered, err := m.renderer.Render(m.item.Body)
 				
@@ -353,7 +362,7 @@ func (m InboxModel) View() string {
 				lines[m.bodyScroll + m.bodyLine] = fmt.Sprintf("%s %s", ">", lines[m.bodyScroll + m.bodyLine])
 			}
 
-			visibleLines := 50
+			visibleLines := m.termHeight - 10
 			end := m.bodyScroll + visibleLines
 
 			if end > len(lines) {
